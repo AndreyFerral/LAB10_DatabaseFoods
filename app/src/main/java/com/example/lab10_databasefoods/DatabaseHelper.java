@@ -1,7 +1,6 @@
 package com.example.lab10_databasefoods;
 
 import android.content.Context;
-import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
@@ -12,13 +11,24 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
-    private static String DB_NAME = "foods.db";
-    private static String DB_PATH = "";
-    private static final int DB_VERSION = 1;
+    private static String DB_NAME = "foods.db"; // имя бд
+    private static String DB_PATH = "";         // путь к бд
+    private static final int DB_VERSION = 1;    // версия бд
 
     private SQLiteDatabase mDataBase;
     private final Context mContext;
-    private boolean mNeedUpdate = false;
+
+    @Override
+    public void onCreate(SQLiteDatabase db) { }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) { }
+
+    @Override
+    public synchronized void close() {
+        if (mDataBase != null) mDataBase.close();
+        super.close();
+    }
 
     public DatabaseHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -33,23 +43,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         this.getReadableDatabase();
     }
 
-    public void updateDataBase() throws IOException {
-        if (mNeedUpdate) {
-            File dbFile = new File(DB_PATH + DB_NAME);
-            if (dbFile.exists())
-                dbFile.delete();
-
-            copyDataBase();
-
-            mNeedUpdate = false;
-        }
-    }
-
+    // Проверка на существование базы данных
     private boolean checkDataBase() {
         File dbFile = new File(DB_PATH + DB_NAME);
         return dbFile.exists();
     }
 
+    // Копирование базы данных
     private void copyDataBase() {
         if (!checkDataBase()) {
             this.getReadableDatabase();
@@ -57,43 +57,27 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             try {
                 copyDBFile();
             } catch (IOException mIOException) {
-                throw new Error("ErrorCopyingDataBase");
+                throw new Error("Ошибка при копировании БД");
             }
         }
     }
 
+    // Копирование файлов в базе данных
     private void copyDBFile() throws IOException {
+
+        // Получаем две бд. Одна с данными, вторая для копирования в неё данных
         InputStream mInput = mContext.getAssets().open(DB_NAME);
         OutputStream mOutput = new FileOutputStream(DB_PATH + DB_NAME);
+
+        // Побайтово копируем данные
         byte[] mBuffer = new byte[1024];
         int mLength;
         while ((mLength = mInput.read(mBuffer)) > 0)
             mOutput.write(mBuffer, 0, mLength);
+
         mOutput.flush();
         mOutput.close();
         mInput.close();
     }
 
-    public boolean openDataBase() throws SQLException {
-        mDataBase = SQLiteDatabase.openDatabase(DB_PATH + DB_NAME, null, SQLiteDatabase.CREATE_IF_NECESSARY);
-        return mDataBase != null;
-    }
-
-    @Override
-    public synchronized void close() {
-        if (mDataBase != null)
-            mDataBase.close();
-        super.close();
-    }
-
-    @Override
-    public void onCreate(SQLiteDatabase db) {
-
-    }
-
-    @Override
-    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        if (newVersion > oldVersion)
-            mNeedUpdate = true;
-    }
 }
